@@ -1,0 +1,22 @@
+// Filled by .github/workflows/deploy-worker.yml (and scripts/preview.sh). Do not deploy as is.
+{
+  "$schema": "https://unpkg.com/wrangler/config-schema.json",
+  "name": "__WORKER_NAME__",
+  "main": "worker.js",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": false,
+  "preview_urls": false,
+  "vars": {
+    "DOCS_PREFIX": "__DOCS_PREFIX__",
+    "PROJECT_NAME": "__PROJECT_NAME__",
+    "PROJECT_URL": "__PROJECT_URL__",
+    "OLD_ORIGIN": "__OLD_ORIGIN__"
+  },
+  "assets": {
+    "directory": "__ASSETS_DIR__",
+    "binding": "ASSETS",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page"
+  },
+  "observability": { "enabled": true }
+}

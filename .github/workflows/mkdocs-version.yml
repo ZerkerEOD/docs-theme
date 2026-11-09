@@ -1,0 +1,41 @@
+# Reusable: publish one version with mike and optionally point `latest` at it.
+# Replaces mike's `latest` symlink with a real directory copy, which static hosts need.
+# Caller must grant `permissions: contents: write`.
+name: mkdocs version
+on:
+  workflow_call:
+    inputs:
+      version: { type: string, required: true }
+      set_as_latest: { type: boolean, default: true }
+      python-version: { type: string, default: "3.11" }
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - run: |
+          git config user.name github-actions[bot]
+          git config user.email github-actions[bot]@users.noreply.github.com
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ inputs.python-version }}", cache: pip, cache-dependency-path: requirements-docs.txt }
+      - run: pip install -r requirements-docs.txt
+      - name: mike deploy ${{ inputs.version }}
+        env:
+          VERSION: ${{ inputs.version }}
+          SET_LATEST: ${{ inputs.set_as_latest }}
+        run: |
+          git fetch origin
+          if git ls-remote --exit-code --heads origin gh-pages >/dev/null; then git checkout gh-pages && git pull -q origin gh-pages && git checkout -; fi
+          if [ "$SET_LATEST" = "true" ]; then
+            mike deploy --push --update-aliases "$VERSION" latest
+            mike set-default --push "$VERSION"
+            rm -rf site
+            git fetch origin gh-pages:gh-pages
+            git checkout gh-pages
+            if [ -L latest ]; then rm -f latest; cp -r "$VERSION" latest; git add -A; git commit -m "Replace latest symlink with a copy of $VERSION"; git push --force-with-lease origin gh-pages; fi
+            git checkout -
+          else
+            mike deploy --push --update-aliases "$VERSION"
+          fi
+          mike list

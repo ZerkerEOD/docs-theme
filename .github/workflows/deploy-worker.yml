@@ -1,0 +1,55 @@
+# Reusable: upload the caller's gh-pages tree plus the zerkersec theme as the static
+# assets of a Cloudflare Worker (worker/worker.js from this repo), which zerkersec.io
+# serves at <docs_prefix> through a service binding.
+#
+# Secrets (set per project repo from the owner's secret store):
+#   CLOUDFLARE_API_TOKEN   Workers Scripts: Edit on the personal account
+#   CLOUDFLARE_ACCOUNT_ID  the personal account id
+name: deploy docs worker
+on:
+  workflow_call:
+    inputs:
+      worker_name: { type: string, required: true }     # e.g. krakenhashes-docs
+      docs_prefix: { type: string, required: true }     # e.g. /krakenhashes/docs
+      project_name: { type: string, required: true }    # banner label, e.g. krakenhashes
+      project_url: { type: string, required: true }     # banner link, e.g. https://zerkersec.io/krakenhashes/
+      old_origin: { type: string, default: "" }         # optional absolute site_url baked into old builds
+      theme_ref: { type: string, default: "main" }
+    secrets:
+      CLOUDFLARE_API_TOKEN: { required: true }
+      CLOUDFLARE_ACCOUNT_ID: { required: true }
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout published docs (gh-pages)
+        uses: actions/checkout@v4
+        with: { ref: gh-pages, path: deploy/site }
+      - name: Checkout docs-theme
+        uses: actions/checkout@v4
+        with: { repository: ZerkerEOD/docs-theme, ref: "${{ inputs.theme_ref }}", path: theme-src }
+      - name: Assemble
+        env:
+          WORKER_NAME: ${{ inputs.worker_name }}
+          DOCS_PREFIX: ${{ inputs.docs_prefix }}
+          PROJECT_NAME: ${{ inputs.project_name }}
+          PROJECT_URL: ${{ inputs.project_url }}
+          OLD_ORIGIN: ${{ inputs.old_origin }}
+        run: |
+          rm -rf deploy/site/.git deploy/site/.nojekyll
+          mkdir -p deploy/site/_theme/stylesheets deploy/site/_theme/assets/fonts
+          cp theme-src/theme/stylesheets/zerkersec.css deploy/site/_theme/stylesheets/
+          cp theme-src/theme/assets/fonts/*.woff2 deploy/site/_theme/assets/fonts/
+          cp theme-src/worker/worker.js deploy/worker.js
+          sed -e "s|__WORKER_NAME__|$WORKER_NAME|; s|__DOCS_PREFIX__|$DOCS_PREFIX|; s|__PROJECT_NAME__|$PROJECT_NAME|; s|__PROJECT_URL__|$PROJECT_URL|; s|__OLD_ORIGIN__|$OLD_ORIGIN|; s|__ASSETS_DIR__|./site|" theme-src/worker/wrangler.template.jsonc > deploy/wrangler.jsonc
+          echo "$(find deploy/site -type f | wc -l) files"
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: wrangler deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: deploy
+          command: deploy
+      - run: echo "Deployed ${{ inputs.worker_name }}; served at https://zerkersec.io${{ inputs.docs_prefix }}/" >> "$GITHUB_STEP_SUMMARY"
