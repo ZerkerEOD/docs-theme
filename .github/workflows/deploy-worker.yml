@@ -51,5 +51,6 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: deploy
+          wranglerVersion: "4"   # the action's default wrangler 3.x ignores wrangler.jsonc (JSON config needs 3.91+)
           command: deploy
       - run: echo "Deployed ${{ inputs.worker_name }}; served at https://zerkersec.io${{ inputs.docs_prefix }}/" >> "$GITHUB_STEP_SUMMARY"
