@@ -25,6 +25,8 @@ jobs:
           VERSION: ${{ inputs.version }}
           SET_LATEST: ${{ inputs.set_as_latest }}
         run: |
+          VERSION="${VERSION#v}"   # tags are v3.1.0, published versions are 3.1.0
+          echo "publishing version $VERSION"
           git fetch origin
           if git ls-remote --exit-code --heads origin gh-pages >/dev/null; then git checkout gh-pages && git pull -q origin gh-pages && git checkout -; fi
           if [ "$SET_LATEST" = "true" ]; then
